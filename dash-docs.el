@@ -7,6 +7,7 @@
 ;;         Bryan Gilbert <bryan@bryan.sh>
 ;;
 ;; URL: http://github.com/areina/helm-dash
+;; Package-Version: 20190516.1702
 ;; Version: 1.4.0
 ;; Package-Requires: ((emacs "24.4") (cl-lib "0.5") (async "1.9.3"))
 ;; Keywords: docs
@@ -40,6 +41,7 @@
 (require 'async)
 (require 'thingatpt)
 (require 'gnutls)
+
 
 (defgroup dash-docs nil
   "Search Dash docsets."
@@ -528,8 +530,28 @@ Either a file:/// URL joining DOCSET-NAME, FILENAME & ANCHOR with sanitization
        "%20"
        (concat
         "file:///"
-        (expand-file-name "Contents/Resources/Documents/" (dash-docs-docset-path docset-name))
+        (dash-docs--expand-file-name "Contents/Resources/Documents/"
+                                     (dash-docs-docset-path docset-name))
+        ;; (expand-file-name "Contents/Resources/Documents/" (dash-docs-docset-path docset-name))
         path)))))
+
+(defun dash-docs--expand-file-name (name &optional default-directory)
+  (let ((path (expand-file-name name default-directory)))
+    (cond
+     ((eq system-type 'cygwin)
+      (concat
+       (replace-regexp-in-string
+        (regexp-quote "\\") "/"
+        ;; `cygpath' command removes the trailing "/" and
+        ;; `shell-command-to-string' appends a newline, so we need to
+        ;; add "/" and remove the newline.
+        (replace-regexp-in-string
+         "[\n]"
+         ""
+         (shell-command-to-string (format "cygpath -aw %s" (url-encode-url path)))))
+       "/"))
+     (t
+      path))))
 
 (defun dash-docs-browse-url (search-result)
   "Call to `browse-url' with the result returned by `dash-docs-result-url'.
