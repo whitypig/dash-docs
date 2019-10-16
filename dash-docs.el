@@ -473,21 +473,29 @@ If PATTERN starts with the name of a docset followed by a space, narrow the
  used connections to just that one.  We're looping on all connections, but it
  shouldn't be a problem as there won't be many."
   (let ((conns (dash-docs-filter-connections)))
-    (or (cl-loop for x in conns
-                 if (string-prefix-p
-                     (concat (downcase (car x)) " ")
-                     (downcase pattern))
-                 return (list x))
+    (or (cl-loop for con in conns
+                 for docset-name = (downcase (car con))
+                 with pattern = (downcase pattern)
+                 if (and ;; (> (length pattern) 0)
+                         ;; (string-match-p "[^ ]+ " pattern)
+                         ;; (string-prefix-p (car (split-string pattern)) docset-name)
+                         (string-prefix-p (concat docset-name " ") pattern)
+                         )
+                 return (list con))
         conns)))
 
 (defun dash-docs-sub-docset-name-in-pattern (pattern docset-name)
-  "Remove from PATTERN the DOCSET-NAME if this includes it.
-If the search starts with the name of the docset, ignore it.
-Ex: This avoids searching for redis in redis unless you type 'redis redis'"
-  (replace-regexp-in-string
-   (format "^%s " (regexp-quote (downcase docset-name)))
-   ""
-   pattern))
+  "Remove from PATTERN the DOCSET-NAME or its prefix substring if this
+  includes it.If the search starts with the name of the docset, ignore
+  it.
+Ex: This avoids searching for redis in redis unless you type 'redis
+  redis'"
+  (cond
+   ((and (string-match-p "^[^ ]+ [^ ]+" pattern)
+         (string-prefix-p (car (split-string pattern)) (downcase docset-name)))
+    (replace-regexp-in-string "^[^ ]+ " "" pattern))
+   (t
+    pattern)))
 
 (defun dash-docs--run-query (docset search-pattern)
   "Execute an sql query in dash docset DOCSET looking for SEARCH-PATTERN.
@@ -535,8 +543,8 @@ Either a file:/// URL joining DOCSET-NAME, FILENAME & ANCHOR with sanitization
         ;; (expand-file-name "Contents/Resources/Documents/" (dash-docs-docset-path docset-name))
         path)))))
 
-(defun dash-docs--expand-file-name (name &optional default-directory)
-  (let ((path (expand-file-name name default-directory)))
+(defun dash-docs--expand-file-name (name &optional default-dir)
+  (let ((path (expand-file-name name default-dir)))
     (cond
      ((eq system-type 'cygwin)
       (concat
